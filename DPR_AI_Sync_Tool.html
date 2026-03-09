@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPR SYNC TOOL</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #080a0e;
+    --surface: #0f1318;
+    --card: #141920;
+    --border: #1e2730;
+    --accent: #00ff88;
+    --accent2: #ff3c6e;
+    --accent3: #7b6fff;
+    --text: #e8eaed;
+    --muted: #5a6578;
+    --master: #00ff88;
+    --dist: #ffa940;
+    --lic: #7b6fff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Space Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .header-badge {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 32px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .step {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+
+  .step:last-child { border-right: none; }
+
+  .step.active {
+    color: var(--accent);
+    background: rgba(0,255,136,0.05);
+  }
+
+  .step.done {
+    color: var(--text);
+  }
+
+  .step-num {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+
+  .step.done .step-num {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+  }
+
+  /* Panels */
+  .panel {
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .panel.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    background: var(--accent);
+    display: block;
+  }
+
+  /* Upload area */
+  .upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag {
+    border-color: var(--accent);
+    background: rgba(0,255,136,0.03);
+  }
+
+  .upload-zone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .upload-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .upload-text {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .upload-text strong { color: var(--text); }
+
+  .catalog-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* Brief textarea */
+  textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    resize: vertical;
+    min-height: 180px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  /* Filters */
+  .filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .filter-chip {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface);
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-chip.active { border-color: var(--accent); color: var(--accent); background: rgba(0,255,136,0.08); }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  .btn-primary:hover { background: #00cc6e; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+
+  .btn-spotify {
+    background: #1DB954;
+    color: #000;
+  }
+
+  .btn-spotify:hover { background: #1ed760; }
+
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+
+  /* Results */
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--accent);
+  }
+
+  .result-card.dist::before { background: var(--dist); }
+  .result-card.lic::before { background: var(--lic); }
+
+  .result-card:hover {
+    border-color: rgba(0,255,136,0.3);
+    transform: translateY(-2px);
+  }
+
+  .track-artist {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .track-name {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .track-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .badge-master { background: rgba(0,255,136,0.15); color: var(--master); border: 1px solid rgba(0,255,136,0.3); }
+  .badge-dist { background: rgba(255,169,64,0.15); color: var(--dist); border: 1px solid rgba(255,169,64,0.3); }
+  .badge-lic { background: rgba(123,111,255,0.15); color: var(--lic); border: 1px solid rgba(123,111,255,0.3); }
+  .badge-genre { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+
+  .track-reason {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .btn-add {
+    flex: 1;
+    padding: 7px 12px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-add:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,255,136,0.05); }
+  .btn-add.added { border-color: var(--accent); color: var(--bg); background: var(--accent); }
+
+  /* Playlist sidebar */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 20px;
+    align-self: start;
+  }
+
+  .playlist-tracks {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .playlist-track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+
+  .playlist-track:last-child { border-bottom: none; }
+
+  .track-num {
+    color: var(--muted);
+    width: 20px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .track-info { flex: 1; min-width: 0; }
+  .track-info .name { font-weight: 700; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-info .art { color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .btn-remove {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    transition: color 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-remove:hover { color: var(--accent2); }
+
+  /* Loading */
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    gap: 16px;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* Spotify config */
+  .config-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+
+  input[type="text"], input[type="password"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  input[type="text"]:focus, input[type="password"]:focus { border-color: var(--accent); }
+
+  /* Spotify auth section */
+  .spotify-section {
+    background: rgba(29,185,84,0.05);
+    border: 1px solid rgba(29,185,84,0.2);
+    border-radius: 4px;
+    padding: 20px;
+    margin-top: 16px;
+  }
+
+  .spotify-connected {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: #1DB954;
+  }
+
+  /* Summary bar */
+  .summary-bar {
+    display: flex;
+    gap: 24px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 20px;
+  }
+
+  .summary-item { display: flex; flex-direction: column; gap: 2px; }
+  .summary-val { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--accent); }
+  .summary-lbl { font-size: 10px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+
+  /* Notification */
+  .notif {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 18px;
+    font-size: 12px;
+    max-width: 300px;
+    z-index: 999;
+    animation: slideIn 0.3s ease;
+    display: none;
+  }
+
+  .notif.show { display: block; }
+  .notif.success { border-color: var(--accent); color: var(--accent); }
+  .notif.error { border-color: var(--accent2); color: var(--accent2); }
+
+  @keyframes slideIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  .row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .spacer { flex: 1; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  .playlist-name-input {
+    margin-bottom: 12px;
+  }
+
+  .tier-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 8px 0 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { position: static; }
+    .config-row { grid-template-columns: 1fr; }
+    .steps .step-label { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="logo">DPR <span>SYNC</span> TOOL</div>
+    <div class="header-badge">Music Supervision · Dale Play Records</div>
+  </header>
+
+  <!-- Steps indicator -->
+  <div class="steps">
+    <div class="step active" id="s1">
+      <div class="step-num">1</div>
+      <span class="step-label">Catálogo</span>
+    </div>
+    <div class="step" id="s2">
+      <div class="step-num">2</div>
+      <span class="step-label">Brief</span>
+    </div>
+    <div class="step" id="s3">
+      <div class="step-num">3</div>
+      <span class="step-label">Resultados</span>
+    </div>
+    <div class="step" id="s4">
+      <div class="step-num">4</div>
+      <span class="step-label">Spotify</span>
+    </div>
+  </div>
+
+  <!-- Panel 1: Catálogo -->
+  <div class="panel active" id="p1">
+    <div class="card">
+      <div class="card-title">Catálogo DPR</div>
+
+      <div id="upload-area">
+        <div class="upload-zone" id="drop-zone">
+          <input type="file" accept=".xlsx,.xls" id="catalog-file" onchange="loadCatalog(this)">
+          <span class="upload-icon">📂</span>
+          <div class="upload-text">
+            <strong>Subí el catálogo DPR</strong><br>
+            Arrastrá o hacé click para seleccionar el archivo .xlsx<br>
+            <span style="color:var(--muted);font-size:10px;">catalogo_DPR_completo.xlsx</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="catalog-loaded" style="display:none">
+        <div class="catalog-status">
+          <div class="status-dot"></div>
+          <div id="catalog-info"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button class="btn btn-secondary" onclick="resetCatalog()" style="font-size:10px;padding:7px 14px;">Cambiar archivo</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-primary" id="btn-next1" onclick="goTo(2)" disabled>
+        Continuar → Brief
+      </button>
+    </div>
+  </div>
+
+  <!-- Panel 2: Brief -->
+  <div class="panel" id="p2">
+    <div class="card">
+      <div class="card-title">Brief de Sincronización</div>
+
+      <div class="input-group" style="margin-bottom:16px;">
+        <div class="input-label">Descripción del Proyecto / Brief</div>
+        <textarea id="brief-text" placeholder="Pegá el brief acá. Incluí: proyecto, escenas, género/estilo de referencia, mood, idioma, presupuesto, preferencia de contrato (one-stop/master vs distribución), artistas de referencia, etc.
+
+Ejemplo:
+— Película: coming-of-age teen, escenas de fiesta
+— Buscamos: trap/pop, energético, fiestero
+— Referencias: Charli XCX, Addison Rae, Trueno
+— Budget: $1k–$3k por track
+— Preferencia: one-stop / master
+— Idioma: español o inglés"></textarea>
+      </div>
+
+      <div class="input-group" style="margin-bottom:16px;">
+        <div class="input-label">Cantidad de tracks a sugerir</div>
+        <div class="filters">
+          <div class="filter-chip active" onclick="setCount(this, 10)">10 tracks</div>
+          <div class="filter-chip" onclick="setCount(this, 15)">15 tracks</div>
+          <div class="filter-chip" onclick="setCount(this, 20)">20 tracks</div>
+          <div class="filter-chip" onclick="setCount(this, 25)">25 tracks</div>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <div class="input-label">Prioridad de contrato</div>
+        <div class="filters">
+          <div class="filter-chip active" onclick="setPriority(this, 'master')">⭐ Solo Master/One-stop</div>
+          <div class="filter-chip" onclick="setPriority(this, 'all')">Todos los contratos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="btn btn-secondary" onclick="goTo(1)">← Volver</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="btn-analyze" onclick="analyze()">
+        ✦ Analizar con IA
+      </button>
+    </div>
+  </div>
+
+  <!-- Panel 3: Resultados -->
+  <div class="panel" id="p3">
+    <div id="loading-state" class="card" style="display:none">
+      <div class="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Analizando catálogo con IA...</div>
+      </div>
+    </div>
+
+    <div id="results-state" style="display:none">
+      <!-- Summary -->
+      <div class="summary-bar">
+        <div class="summary-item">
+          <div class="summary-val" id="sum-total">0</div>
+          <div class="summary-lbl">Tracks sugeridos</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-val" id="sum-master" style="color:var(--master)">0</div>
+          <div class="summary-lbl">Master / One-stop</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-val" id="sum-playlist" style="color:var(--accent3)">0</div>
+          <div class="summary-lbl">En playlist</div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-secondary" onclick="goTo(2)" style="align-self:center;">← Nuevo brief</button>
+      </div>
+
+      <div class="layout">
+        <!-- Results -->
+        <div>
+          <div id="results-grid" class="results-grid"></div>
+        </div>
+
+        <!-- Playlist sidebar -->
+        <div class="sidebar">
+          <div class="card">
+            <div class="card-title">Playlist</div>
+            <div class="input-group playlist-name-input">
+              <div class="input-label">Nombre</div>
+              <input type="text" id="playlist-name" placeholder="DPR Sync — Brief 2025">
+            </div>
+            <div class="input-group" style="margin-bottom:12px;">
+              <div class="input-label">Descripción</div>
+              <input type="text" id="playlist-desc" placeholder="Selección para supervisión musical">
+            </div>
+            <div id="playlist-tracks" class="playlist-tracks">
+              <div class="empty-state">Agregá tracks<br>desde los resultados</div>
+            </div>
+            <hr>
+            <button class="btn btn-spotify" style="width:100%;justify-content:center;" onclick="goTo(4)">
+              🎵 Crear en Spotify
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 4: Spotify -->
+  <div class="panel" id="p4">
+    <div class="card">
+      <div class="card-title">Configuración Spotify</div>
+      <div class="config-row">
+        <div class="input-group">
+          <div class="input-label">Client ID</div>
+          <input type="text" id="sp-client-id" placeholder="Tu Spotify Client ID" oninput="saveSpotifyConfig()">
+        </div>
+        <div class="input-group">
+          <div class="input-label">Client Secret</div>
+          <input type="password" id="sp-client-secret" placeholder="Tu Spotify Client Secret" oninput="saveSpotifyConfig()">
+        </div>
+      </div>
+      <div class="input-group">
+        <div class="input-label">Redirect URI (copiá y pegá en Spotify Dashboard)</div>
+        <input type="text" id="redirect-uri" readonly onclick="this.select()" style="color:var(--accent);cursor:pointer;">
+      </div>
+      <p style="font-size:10px;color:var(--muted);margin-top:8px;">
+        Configurá tu app en <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:var(--accent)">developer.spotify.com/dashboard</a> → Edit Settings → Redirect URIs
+      </p>
+    </div>
+
+    <div id="sp-auth-section" class="spotify-section">
+      <div id="sp-not-connected">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+          Autenticá tu cuenta de Spotify para crear la playlist automáticamente.
+        </p>
+        <button class="btn btn-spotify" onclick="spotifyAuth()">🎵 Conectar con Spotify</button>
+      </div>
+      <div id="sp-connected" style="display:none">
+        <div class="spotify-connected">
+          <span style="font-size:18px;">✓</span>
+          <span>Conectado como <strong id="sp-username"></strong></span>
+        </div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-spotify" onclick="createPlaylist()">
+            ✦ Crear Playlist (<span id="btn-track-count">0</span> tracks)
+          </button>
+          <button class="btn btn-secondary" onclick="spotifyLogout()" style="margin-left:8px;font-size:10px;padding:8px 14px;">Desconectar</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:10px;">
+      <button class="btn btn-secondary" onclick="goTo(3)">← Volver a resultados</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notification -->
+<div class="notif" id="notif"></div>
+
+<script>
+// ==================== STATE ====================
+let catalog = [];
+let suggestions = [];
+let playlist = [];
+let trackCount = 10;
+let contractPriority = 'master';
+let spotifyToken = null;
+let spotifyUserId = null;
+
+// ==================== INIT ====================
+window.onload = () => {
+  document.getElementById('redirect-uri').value = window.location.href.split('?')[0].split('#')[0];
+  loadSpotifyConfig();
+  handleSpotifyCallback();
+};
+
+// ==================== NAVIGATION ====================
+function goTo(n) {
+  document.querySelectorAll('.panel').forEach((p, i) => {
+    p.classList.toggle('active', i + 1 === n);
+  });
+  document.querySelectorAll('.step').forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    if (i + 1 < n) s.classList.add('done');
+    if (i + 1 === n) s.classList.add('active');
+  });
+  if (n === 4) updatePlaylistUI();
+}
+
+// ==================== CATALOG ====================
+function loadCatalog(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      
+      // Detect columns dynamically
+      const sample = data[0];
+      const keys = Object.keys(sample);
+      const artistCol = keys.find(k => k.toLowerCase().includes('artist') || k.toLowerCase().includes('artista')) || keys[4];
+      const trackCol = keys.find(k => k.toLowerCase().includes('track name') || k.toLowerCase().includes('track track')) || keys[3];
+      const genreCol = keys.find(k => k.toLowerCase().includes('nera') || k.toLowerCase().includes('genre')) || keys[7];
+      const contractCol = keys.find(k => k.toLowerCase().includes('contrato') || k.toLowerCase().includes('contract')) || keys[8];
+      const isrcCol = keys.find(k => k.toLowerCase().includes('isrc')) || keys[2];
+
+      catalog = data
+        .map(row => ({
+          artist: String(row[artistCol] || '').trim(),
+          track: String(row[trackCol] || '').trim(),
+          genre: String(row[genreCol] || '').trim(),
+          contract: String(row[contractCol] || '').trim(),
+          isrc: String(row[isrcCol] || '').trim(),
+        }))
+        .filter(r => r.artist && r.track);
+
+      const masterCount = catalog.filter(r => r.contract === 'Master').length;
+      const distCount = catalog.filter(r => r.contract === 'Distribución').length;
+
+      document.getElementById('upload-area').style.display = 'none';
+      document.getElementById('catalog-loaded').style.display = 'block';
+      document.getElementById('catalog-info').innerHTML = 
+        `<strong>${catalog.length.toLocaleString()} tracks</strong> cargados · <span style="color:var(--master)">${masterCount} Master</span> · <span style="color:var(--dist)">${distCount} Distribución</span>`;
+      document.getElementById('btn-next1').disabled = false;
+      notify(`✓ Catálogo cargado — ${catalog.length} tracks`, 'success');
+    } catch (err) {
+      notify('Error al leer el archivo. Verificá que sea el catálogo DPR (.xlsx)', 'error');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function resetCatalog() {
+  catalog = [];
+  document.getElementById('upload-area').style.display = 'block';
+  document.getElementById('catalog-loaded').style.display = 'none';
+  document.getElementById('btn-next1').disabled = true;
+  document.getElementById('catalog-file').value = '';
+}
+
+// ==================== FILTERS ====================
+function setCount(el, n) {
+  trackCount = n;
+  document.querySelectorAll('.filters .filter-chip').forEach(c => {
+    if (c.closest('.input-group') === el.closest('.input-group')) c.classList.remove('active');
+  });
+  el.classList.add('active');
+}
+
+function setPriority(el, val) {
+  contractPriority = val;
+  el.closest('.filters').querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ==================== AI ANALYSIS ====================
+async function analyze() {
+  const brief = document.getElementById('brief-text').value.trim();
+  if (!brief) { notify('Escribí el brief antes de analizar', 'error'); return; }
+  if (!catalog.length) { notify('Cargá el catálogo primero', 'error'); return; }
+
+  goTo(3);
+  document.getElementById('loading-state').style.display = 'block';
+  document.getElementById('results-state').style.display = 'none';
+
+  // Prepare catalog summary for AI (compact representation)
+  const contractFilter = contractPriority === 'master' 
+    ? catalog.filter(r => r.contract === 'Master')
+    : catalog;
+
+  // Group by artist for compact representation
+  const artistMap = {};
+  contractFilter.forEach(r => {
+    if (!artistMap[r.artist]) artistMap[r.artist] = { tracks: [], genres: new Set() };
+    artistMap[r.artist].tracks.push(r.track);
+    artistMap[r.artist].genres.add(r.genre);
+  });
+
+  const catalogSummary = Object.entries(artistMap)
+    .map(([artist, data]) => {
+      const genres = [...data.genres].join('/');
+      const tracks = data.tracks.slice(0, 20).join(' | ');
+      const more = data.tracks.length > 20 ? ` (+${data.tracks.length - 20} más)` : '';
+      return `ARTISTA: ${artist} [${genres}]\nTRACKS: ${tracks}${more}`;
+    })
+    .join('\n\n');
+
+  const systemPrompt = `Sos un supervisor musical profesional especializado en sincronizaciones para cine, TV y publicidad. Trabajás con el catálogo de Dale Play Records (sello argentino/latinoamericano).
+
+Tu tarea: analizar el brief de sincronización y recomendar exactamente ${trackCount} tracks del catálogo, priorizando los que mejor se adapten al proyecto.
+
+IMPORTANTE:
+- Solo podés recomendar tracks que EXISTAN en el catálogo (artista + track name deben coincidir exactamente)
+- Los contratos ${contractPriority === 'master' ? 'listados son todos MASTER (one-stop)' : 'varían'}
+- Priorizá variedad de artistas, no pongas 5 tracks del mismo artista
+- Tené en cuenta: mood, género, idioma, tempo, energía y fit con la escena descripta
+
+Respondé SOLO con JSON válido, sin markdown ni explicaciones:
+{
+  "tracks": [
+    {
+      "artist": "nombre exacto del artista",
+      "track": "nombre exacto del track",
+      "reason": "por qué encaja con el brief (max 100 chars)",
+      "tier": 1
+    }
+  ],
+  "summary": "resumen de 2 líneas de la selección"
+}
+
+tier 1 = fit perfecto, tier 2 = muy bueno, tier 3 = alternativa`;
+
+  const userPrompt = `BRIEF DEL CLIENTE:\n${brief}\n\n---\nCATÁLOGO DISPONIBLE (${contractFilter.length} tracks${contractPriority === 'master' ? ', todos MASTER' : ''}):\n\n${catalogSummary}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 3000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || '';
+
+    let parsed;
+    try {
+      const clean = text.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error('Error parsing AI response');
+    }
+
+    suggestions = parsed.tracks || [];
+
+    // Enrich with catalog data
+    suggestions = suggestions.map(s => {
+      const match = catalog.find(c =>
+        c.artist.toLowerCase() === s.artist.toLowerCase() &&
+        c.track.toLowerCase() === s.track.toLowerCase()
+      );
+      return {
+        ...s,
+        contract: match?.contract || (contractPriority === 'master' ? 'Master' : 'Distribución'),
+        genre: match?.genre || '',
+        isrc: match?.isrc || '',
+        inPlaylist: false
+      };
+    });
+
+    renderResults(parsed.summary);
+  } catch (err) {
+    document.getElementById('loading-state').style.display = 'none';
+    notify('Error al conectar con la IA. Verificá tu conexión.', 'error');
+    console.error(err);
+  }
+}
+
+// ==================== RENDER RESULTS ====================
+function renderResults(summary) {
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('results-state').style.display = 'block';
+
+  updateSummaryBar();
+
+  const grid = document.getElementById('results-grid');
+
+  // Group by tier
+  const tier1 = suggestions.filter(s => s.tier === 1);
+  const tier2 = suggestions.filter(s => s.tier === 2);
+  const tier3 = suggestions.filter(s => s.tier === 3);
+
+  let html = '';
+
+  if (summary) {
+    html += `<div style="padding:14px 16px;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.15);border-radius:4px;font-size:12px;line-height:1.7;color:var(--text);margin-bottom:20px;grid-column:1/-1">
+      <span style="color:var(--accent);font-weight:700;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;">ANÁLISIS IA · </span>${summary}
+    </div>`;
+  }
+
+  const renderGroup = (tracks, label) => {
+    if (!tracks.length) return '';
+    let groupHtml = `<div class="tier-label" style="grid-column:1/-1">${label} (${tracks.length})</div>`;
+    tracks.forEach((s, i) => {
+      const contractClass = s.contract === 'Master' ? 'master' : s.contract === 'Distribución' ? 'dist' : 'lic';
+      const contractBadge = s.contract === 'Master' ? 'badge-master' : s.contract === 'Distribución' ? 'badge-dist' : 'badge-lic';
+      const idx = suggestions.indexOf(s);
+      groupHtml += `
+        <div class="result-card ${contractClass}" id="rc-${idx}">
+          <div class="track-artist">${escHtml(s.artist)}</div>
+          <div class="track-name">${escHtml(s.track)}</div>
+          <div class="track-meta">
+            <span class="badge ${contractBadge}">${s.contract}</span>
+            ${s.genre ? `<span class="badge badge-genre">${s.genre}</span>` : ''}
+          </div>
+          ${s.reason ? `<div class="track-reason">"${escHtml(s.reason)}"</div>` : ''}
+          <div class="card-actions">
+            <button class="btn-add" id="btn-add-${idx}" onclick="togglePlaylist(${idx})">
+              + Agregar a playlist
+            </button>
+            <a href="https://open.spotify.com/search/${encodeURIComponent(s.artist + ' ' + s.track)}" 
+               target="_blank" 
+               style="padding:7px 10px;border:1px solid var(--border);border-radius:2px;font-size:10px;color:var(--muted);text-decoration:none;transition:all 0.15s;"
+               onmouseover="this.style.borderColor='#1DB954';this.style.color='#1DB954'"
+               onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+              ▷
+            </a>
+          </div>
+        </div>`;
+    });
+    return groupHtml;
+  };
+
+  html += renderGroup(tier1, '⭐ TIER 1 — FIT PERFECTO');
+  html += renderGroup(tier2, '✦ TIER 2 — MUY BUENO');
+  html += renderGroup(tier3, '· TIER 3 — ALTERNATIVAS');
+
+  grid.innerHTML = html;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ==================== PLAYLIST ====================
+function togglePlaylist(idx) {
+  const s = suggestions[idx];
+  if (!s) return;
+  s.inPlaylist = !s.inPlaylist;
+
+  const btn = document.getElementById(`btn-add-${idx}`);
+  if (s.inPlaylist) {
+    btn.textContent = '✓ En playlist';
+    btn.classList.add('added');
+    playlist.push(s);
+  } else {
+    btn.textContent = '+ Agregar a playlist';
+    btn.classList.remove('added');
+    playlist = playlist.filter(p => p !== s);
+  }
+  updateSummaryBar();
+  updatePlaylistUI();
+}
+
+function removeFromPlaylist(idx) {
+  const item = playlist[idx];
+  if (item) {
+    item.inPlaylist = false;
+    const sugIdx = suggestions.indexOf(item);
+    if (sugIdx >= 0) {
+      const btn = document.getElementById(`btn-add-${sugIdx}`);
+      if (btn) { btn.textContent = '+ Agregar a playlist'; btn.classList.remove('added'); }
+    }
+  }
+  playlist.splice(idx, 1);
+  updateSummaryBar();
+  updatePlaylistUI();
+}
+
+function updateSummaryBar() {
+  document.getElementById('sum-total').textContent = suggestions.length;
+  document.getElementById('sum-master').textContent = suggestions.filter(s => s.contract === 'Master').length;
+  document.getElementById('sum-playlist').textContent = playlist.length;
+}
+
+function updatePlaylistUI() {
+  const el = document.getElementById('playlist-tracks');
+  document.getElementById('btn-track-count').textContent = playlist.length;
+
+  if (!playlist.length) {
+    el.innerHTML = '<div class="empty-state">Agregá tracks<br>desde los resultados</div>';
+    return;
+  }
+
+  el.innerHTML = playlist.map((p, i) => `
+    <div class="playlist-track">
+      <span class="track-num">${i + 1}</span>
+      <div class="track-info">
+        <div class="name">${escHtml(p.track)}</div>
+        <div class="art">${escHtml(p.artist)}</div>
+      </div>
+      <button class="btn-remove" onclick="removeFromPlaylist(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+// ==================== SPOTIFY ====================
+function saveSpotifyConfig() {
+  localStorage.setItem('sp_client_id', document.getElementById('sp-client-id').value);
+}
+
+function loadSpotifyConfig() {
+  const id = localStorage.getItem('sp_client_id') || '';
+  document.getElementById('sp-client-id').value = id;
+}
+
+function spotifyAuth() {
+  const clientId = document.getElementById('sp-client-id').value.trim();
+  if (!clientId) { notify('Ingresá tu Spotify Client ID', 'error'); return; }
+  const redirect = document.getElementById('redirect-uri').value;
+  const scopes = 'playlist-modify-public playlist-modify-private';
+  const state = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('sp_state', state);
+  sessionStorage.setItem('sp_client_id', clientId);
+  const url = `https://accounts.spotify.com/authorize?response_type=token&client_id=${clientId}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirect)}&state=${state}`;
+  window.location = url;
+}
+
+function handleSpotifyCallback() {
+  const hash = window.location.hash.substring(1);
+  if (!hash) return;
+  const params = new URLSearchParams(hash);
+  const token = params.get('access_token');
+  if (!token) return;
+  spotifyToken = token;
+  history.replaceState(null, null, window.location.pathname);
+  fetchSpotifyUser();
+}
+
+async function fetchSpotifyUser() {
+  try {
+    const res = await fetch('https://api.spotify.com/v1/me', {
+      headers: { Authorization: `Bearer ${spotifyToken}` }
+    });
+    const data = await res.json();
+    spotifyUserId = data.id;
+    document.getElementById('sp-username').textContent = data.display_name || data.id;
+    document.getElementById('sp-not-connected').style.display = 'none';
+    document.getElementById('sp-connected').style.display = 'block';
+    notify('✓ Spotify conectado', 'success');
+    goTo(4);
+  } catch { notify('Error al conectar con Spotify', 'error'); }
+}
+
+function spotifyLogout() {
+  spotifyToken = null;
+  spotifyUserId = null;
+  document.getElementById('sp-not-connected').style.display = 'block';
+  document.getElementById('sp-connected').style.display = 'none';
+}
+
+async function createPlaylist() {
+  if (!playlist.length) { notify('Agregá tracks a la playlist primero', 'error'); return; }
+  if (!spotifyToken || !spotifyUserId) { notify('Conectá tu cuenta de Spotify', 'error'); return; }
+
+  const name = document.getElementById('playlist-name').value || 'DPR Sync';
+  const desc = document.getElementById('playlist-desc').value || 'Generada con DPR Sync Tool';
+
+  try {
+    // Create playlist
+    const res = await fetch(`https://api.spotify.com/v1/users/${spotifyUserId}/playlists`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${spotifyToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: desc, public: false })
+    });
+    const pl = await res.json();
+
+    // Search & add tracks
+    const uris = [];
+    for (const track of playlist) {
+      const q = encodeURIComponent(`artist:${track.artist} track:${track.track}`);
+      const sRes = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=1`, {
+        headers: { Authorization: `Bearer ${spotifyToken}` }
+      });
+      const sData = await sRes.json();
+      const uri = sData?.tracks?.items?.[0]?.uri;
+      if (uri) uris.push(uri);
+    }
+
+    if (uris.length) {
+      await fetch(`https://api.spotify.com/v1/playlists/${pl.id}/tracks`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${spotifyToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uris })
+      });
+    }
+
+    notify(`✓ Playlist creada: "${name}" con ${uris.length}/${playlist.length} tracks`, 'success');
+
+    // Open in Spotify
+    setTimeout(() => { window.open(pl.external_urls.spotify, '_blank'); }, 1000);
+
+  } catch (err) {
+    notify('Error al crear la playlist en Spotify', 'error');
+    console.error(err);
+  }
+}
+
+// ==================== DRAG & DROP ====================
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const input = document.getElementById('catalog-file');
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    loadCatalog(input);
+  }
+});
+
+// ==================== NOTIFY ====================
+let notifTimer;
+function notify(msg, type = 'success') {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.className = `notif show ${type}`;
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
